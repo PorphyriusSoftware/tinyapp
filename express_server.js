@@ -24,13 +24,24 @@ function generateRandomString() {
         counter += 1;
     }
     return result;
- }
+}
+ 
+
+
+app.get("/login", (req, res) => {    
+    const templateVars = { username: null };
+    res.render("login", templateVars);
+});
 
 app.get("/", (req, res) => {
     res.send("Hello!");
 });
 
 app.get("/urls.json", (req, res) => {
+    if (!req.cookies["username"]) {
+        res.redirect('/login');
+        return;
+    } 
     res.json(urlDatabase);
 });
 
@@ -51,6 +62,10 @@ app.get("/fetch", (req, res) => {
 });
 
 app.get("/urls", (req, res) => {
+    if (!req.cookies["username"]) {
+        res.redirect('/login');
+        return;
+    } 
     const templateVars = {
         username: req.cookies["username"],
         urls: urlDatabase
@@ -59,30 +74,55 @@ app.get("/urls", (req, res) => {
 });
 
 app.post("/urls", (req, res) => {
+    if (!req.cookies["username"]) {
+        res.redirect('/login');
+        return;
+    } 
     urlDatabase[generateRandomString()] = req.body.longURL;
     res.redirect('/urls');
 });
 
 app.get("/urls/new", (req, res) => {
-    res.render("urls_new");
+    if (!req.cookies["username"]) {
+        res.redirect('/login');
+        return;
+    } 
+    const templateVars = { username: req.cookies["username"]};
+    res.render("urls_new", templateVars);
 });
 
 app.get("/urls/:id", (req, res) => {
-    const templateVars = { id: req.params.id, longURL: urlDatabase[req.params.id] };
+    if (!req.cookies["username"]) {
+        res.redirect('/login');
+        return;
+    } 
+    const templateVars = { id: req.params.id, longURL: urlDatabase[req.params.id], username: req.cookies["username"] };
     res.render("urls_show", templateVars);
 });
 
 app.post("/urls/:id", (req, res) => {
+    if (!req.cookies["username"]) {
+        res.redirect('/login');
+        return;
+    } 
     urlDatabase[req.params.id] = req.body.longURL;
     res.redirect('/urls');
 });
 
 app.get("/u/:id", (req, res) => {
+    if (!req.cookies["username"]) {
+        res.redirect('/login');
+        return;
+    } 
     const longURL = urlDatabase[req.params.id];   
     res.redirect(longURL);
 });
 
 app.post("/urls/:id/delete", (req, res) => {
+    if (!req.cookies["username"]) {
+        res.redirect('/login');
+        return;
+    } 
     delete urlDatabase[req.params.id];
     res.redirect('/urls');
 });
@@ -94,7 +134,7 @@ app.post("/login", (req, res) => {
 
 app.get("/logout", (req, res) => {
     res.clearCookie('username');
-    res.redirect('/urls');
+    res.redirect('/login');
 });
 
 
