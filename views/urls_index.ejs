@@ -35,7 +35,7 @@
               <td><%= id %></td>
               <td><%= urls[id].longURL %></td>
               <td><a href="/urls/<%=id%>"><button class="btn btn-info" type="button">Edit</button></a></td>
-              <td><form method="POST" action="/urls/<%=id%>/delete"><button class="btn btn-danger" type="submit">Delete</button></form></td>
+              <td><form method="POST" action="/urls/<%=id%>/delete?_method=DELETE"><button class="btn btn-danger" type="submit">Delete</button></form></td>
             </tr>
           <% } %>
         </tbody>

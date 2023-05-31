@@ -1,6 +1,7 @@
 const express = require('express');
 const cookieSession = require('cookie-session')
 const bcrypt = require('bcryptjs');
+const methodOverride = require('method-override')
 const { getUser, getUserByEmail, generateRandomString, urlsForUser } = require('./helpers');
 
 
@@ -14,6 +15,7 @@ app.use(cookieSession({
     keys: ['key1', 'key2'],
     maxAge: 24 * 60 * 60 * 1000 // 24 hours
 }))
+app.use(methodOverride('_method'))
 
 const urlDatabase = {
     'b2xVn2': {
@@ -148,7 +150,7 @@ app.get('/urls/:id', (req, res) => {
     res.render('urls_show', templateVars);
 });
 
-app.post('/urls/:id', (req, res) => {
+app.put('/urls/:id', (req, res) => {
     const user = getUser(req.session.user_id, users);
 
     if (!user) {
@@ -185,7 +187,7 @@ app.get('/u/:id', (req, res) => {
     }
 });
 
-app.post('/urls/:id/delete', (req, res) => {
+app.delete('/urls/:id/delete', (req, res) => {
     const user = getUser(req.session.user_id, users);
 
     if (!user) {
