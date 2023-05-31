@@ -1,5 +1,5 @@
 const express = require("express");
-const cookieParser = require('cookie-parser')
+const cookieSession = require('cookie-session')
 const bcrypt = require("bcryptjs");
 
 const app = express();
@@ -7,7 +7,11 @@ const PORT = 8080; // default port 8080
 
 app.set("view engine", "ejs");
 app.use(express.urlencoded({ extended: true }));
-app.use(cookieParser())
+app.use(cookieSession({
+    name: 'session',
+    keys: ['key1', 'key2'],
+    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+}))
 
 const urlDatabase = {
     "b2xVn2": {
@@ -84,7 +88,7 @@ app.get("/", (req, res) => {
 
 
 app.get("/urls.json", (req, res) => {
-    const user = getUser(req.cookies["user_id"]);
+    const user = getUser(req.session.user_id);
     if (!user) {
         res.status(403);
         res.send('Please login or register');
@@ -110,7 +114,7 @@ app.get("/fetch", (req, res) => {
 });
 
 app.get("/urls", (req, res) => {
-    const user = getUser(req.cookies["user_id"]);
+    const user = getUser(req.session.user_id);
 
 
     if (!user) {
@@ -128,7 +132,9 @@ app.get("/urls", (req, res) => {
 });
 
 app.post("/urls", (req, res) => {
-    const user = getUser(req.cookies["user_id"]);
+
+    
+    const user = getUser(req.session.user_id);
 
     if (!user) {
         res.status(403);
@@ -140,7 +146,7 @@ app.post("/urls", (req, res) => {
 });
 
 app.get("/urls/new", (req, res) => {
-    const user = getUser(req.cookies["user_id"]);
+    const user = getUser(req.session.user_id);
 
     if (!user) {
         res.status(403);
@@ -152,7 +158,7 @@ app.get("/urls/new", (req, res) => {
 });
 
 app.get("/urls/:id", (req, res) => {
-    const user = getUser(req.cookies["user_id"]);
+    const user = getUser(req.session.user_id);
 
     if (!user) {
         res.status(403);
@@ -177,7 +183,7 @@ app.get("/urls/:id", (req, res) => {
 });
 
 app.post("/urls/:id", (req, res) => {
-    const user = getUser(req.cookies["user_id"]);
+    const user = getUser(req.session.user_id);
 
     if (!user) {
         res.status(403);
@@ -214,7 +220,7 @@ app.get("/u/:id", (req, res) => {
 });
 
 app.post("/urls/:id/delete", (req, res) => {
-    const user = getUser(req.cookies["user_id"]);
+    const user = getUser(req.session.user_id);
 
     if (!user) {
         res.status(403);
@@ -240,7 +246,7 @@ app.post("/urls/:id/delete", (req, res) => {
 });
 
 app.get("/login", (req, res) => {
-    const user = getUser(req.cookies["user_id"]);
+    const user = getUser(req.session.user_id);
     if (user) {
         res.redirect('/urls');
         return;
@@ -250,13 +256,12 @@ app.get("/login", (req, res) => {
 });
 
 app.post("/login", (req, res) => {
-console.log(users);
 
     const { email, password } = req.body;
-    res.clearCookie('user_id');
+    req.session=null;
     const user = getUserByEmail(email);
     if (user && bcrypt.compareSync(password, user.password)) {
-        res.cookie('user_id', user.id);
+        req.session.user_id = user.id;        
         res.redirect('/urls');
     } else {
         res.status(403);
@@ -266,12 +271,12 @@ console.log(users);
 });
 
 app.get("/logout", (req, res) => {
-    res.clearCookie('user_id');
+    req.session = null;
     res.redirect('/login');
 });
 
 app.get("/register", (req, res) => {
-    if (req.cookies["user_id"]) {
+    if (req.session.user_id) {
         res.redirect('/urls');
         return;
     }
@@ -298,9 +303,8 @@ app.post("/register", (req, res) => {
     const randomId = generateRandomString();
     users[randomId] = { id: randomId, email: email, password: bcrypt.hashSync(password) };
 
-    console.log(users);
     
-    res.cookie('user_id', randomId);
+    req.session.user_id = randomId; 
     res.redirect('/urls');
 });
 
