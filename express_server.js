@@ -9,18 +9,24 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser())
 
 const urlDatabase = {
-    "b2xVn2": "http://www.lighthouselabs.ca",
-    "9sm5xK": "http://www.google.com"
+    "b2xVn2": {
+        longURL: "http://www.lighthouselabs.ca",
+        userID: "aJ48lW",
+    },
+    "9sm5xK": {
+        longURL: "http://www.google.com",
+        userID: "af35lW",
+    }
 };
 
 const users = {
-    userRandomID: {
-        id: "userRandomID",
+    aJ48lW: {
+        id: "aJ48lW",
         email: "user@example.com",
         password: "purple-monkey-dinosaur",
     },
-    user2RandomID: {
-        id: "user2RandomID",
+    af35lW: {
+        id: "af35lW",
         email: "user2@example.com",
         password: "dishwasher-funk",
     },
@@ -51,25 +57,39 @@ const generateRandomString = () => {
     return result;
 }
 
+const urlsForUser = (id) => {
+    let result = {};
+    for (const key in urlDatabase) {
+        const url = urlDatabase[key];
+        if (url.userID === id) {
+            result[key] = url;
+        }
+
+    }
+
+    return result;
+}
 
 
 
 
-app.get("/login", (req, res) => {
-    const templateVars = { user: null };
-    res.render("login", templateVars);
-});
+
+
 
 app.get("/", (req, res) => {
     res.send("Hello!");
 });
 
+
+
 app.get("/urls.json", (req, res) => {
-    if (!req.cookies["user_id"]) {
-        res.redirect('/login');
+    const user = getUser(req.cookies["user_id"]);
+    if (!user) {
+        res.status(403);
+        res.send('Please login or register');
         return;
     }
-    res.json(urlDatabase);
+    res.json(urlsForUser(user.id));
 });
 
 
@@ -91,13 +111,17 @@ app.get("/fetch", (req, res) => {
 app.get("/urls", (req, res) => {
     const user = getUser(req.cookies["user_id"]);
 
+
     if (!user) {
-        res.redirect('/login');
+        res.status(403);
+        res.send('Please login or register');
         return;
     }
+    let filtered = urlsForUser(user.id);
+
     const templateVars = {
         user: user,
-        urls: urlDatabase
+        urls: filtered
     };
     res.render("urls_index", templateVars);
 });
@@ -106,10 +130,11 @@ app.post("/urls", (req, res) => {
     const user = getUser(req.cookies["user_id"]);
 
     if (!user) {
-        res.redirect('/login');
+        res.status(403);
+        res.send('Please login or register');
         return;
     }
-    urlDatabase[generateRandomString()] = req.body.longURL;
+    urlDatabase[generateRandomString()] = { longURL: req.body.longURL, userID: user.id };
     res.redirect('/urls');
 });
 
@@ -117,7 +142,8 @@ app.get("/urls/new", (req, res) => {
     const user = getUser(req.cookies["user_id"]);
 
     if (!user) {
-        res.redirect('/login');
+        res.status(403);
+        res.send('Please login or register');
         return;
     }
     const templateVars = { user: user };
@@ -128,10 +154,24 @@ app.get("/urls/:id", (req, res) => {
     const user = getUser(req.cookies["user_id"]);
 
     if (!user) {
-        res.redirect('/login');
+        res.status(403);
+        res.send('Please login or register');
         return;
     }
-    const templateVars = { id: req.params.id, longURL: urlDatabase[req.params.id], user: user };
+    const requestURL = urlDatabase[req.params.id];
+    if (!requestURL) {
+        res.status(404);
+        res.send('URL not found');
+        return;
+    }
+
+    if (requestURL.userID !== user.id) {
+        res.status(403);
+        res.send('Access not allowed');
+        return;
+    }
+
+    const templateVars = { id: req.params.id, longURL: requestURL.longURL, user: user };
     res.render("urls_show", templateVars);
 });
 
@@ -139,41 +179,79 @@ app.post("/urls/:id", (req, res) => {
     const user = getUser(req.cookies["user_id"]);
 
     if (!user) {
-        res.redirect('/login');
+        res.status(403);
+        res.send('Please login or register');
         return;
     }
-    urlDatabase[req.params.id] = req.body.longURL;
+    const requestURL = urlDatabase[req.params.id];
+    if (!requestURL) {
+        res.status(404);
+        res.send('URL not found');
+        return;
+    }
+
+    if (requestURL.userID !== user.id) {
+        res.status(403);
+        res.send('Access not allowed');
+        return;
+    }
+    urlDatabase[req.params.id] = { longURL: req.body.longURL, userID: user.id };
     res.redirect('/urls');
 });
 
 app.get("/u/:id", (req, res) => {
-    const user = getUser(req.cookies["user_id"]);
-
-    if (!user) {
-        res.redirect('/login');
-        return;
+    const longURL = urlDatabase[req.params.id].longURL;
+    if (longURL) {
+        res.redirect(longURL);
     }
-    const longURL = urlDatabase[req.params.id];
-    res.redirect(longURL);
+    else {
+        res.status(404);
+        res.send('Short URL not found');
+    }
 });
 
 app.post("/urls/:id/delete", (req, res) => {
     const user = getUser(req.cookies["user_id"]);
 
     if (!user) {
-        res.redirect('/login');
+        res.status(403);
+        res.send('Please login or register');
         return;
     }
+
+    const requestURL = urlDatabase[req.params.id];
+    if (!requestURL) {
+        res.status(404);
+        res.send('Short URL not found');
+        return;
+    }
+
+    if (requestURL.userID !== user.id) {
+        res.status(403);
+        res.send('Access not allowed');
+        return;
+    }
+
     delete urlDatabase[req.params.id];
     res.redirect('/urls');
 });
 
+app.get("/login", (req, res) => {
+    const user = getUser(req.cookies["user_id"]);
+    if (user) {
+        res.redirect('/urls');
+        return;
+    }
+    const templateVars = { user: null };
+    res.render("login", templateVars);
+});
+
 app.post("/login", (req, res) => {
-    
-    const { email, password } = req.body;    
+
+    const { email, password } = req.body;
     res.clearCookie('user_id');
     const user = getUserByEmail(email);
-    if (user&&user.password === password) {
+    if (user && user.password === password) {
         res.cookie('user_id', user.id);
         res.redirect('/urls');
     } else {
@@ -189,13 +267,17 @@ app.get("/logout", (req, res) => {
 });
 
 app.get("/register", (req, res) => {
+    if (req.cookies["user_id"]) {
+        res.redirect('/urls');
+        return;
+    }
     res.render("register");
 });
 
 app.post("/register", (req, res) => {
 
     const { email, password } = req.body;
-    
+
 
     if (!email || !password) {
         res.status(403);
